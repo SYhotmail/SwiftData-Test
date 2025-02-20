@@ -7,11 +7,17 @@
 
 import SwiftUI
 
+extension CharactersListModel.PageInfo {
+    var id: String {
+        "\(next ?? "") - \(prev ?? "")"
+    }
+}
+
 final class CharactersSectionViewModel: ObservableObject, Identifiable {
     let pageInfo: CharactersListModel.PageInfo
     @Published var characters = [CharacterListCellViewModel]()
     
-    var id: Int { pageInfo.pages }
+    var id: String { pageInfo.id }
     
     convenience init(model: CharactersListModel) {
         self.init(pageInfo: model.info,
@@ -44,14 +50,29 @@ final class CharacterListCellViewModel: ObservableObject, Identifiable {
         officialName = model.name
     }
     
+    func loadedImage() {
+        frameWidth = 50
+    }
+    
+    @MainActor
+    private func refreshImageURL() {
+        let old = imageURL
+        objectWillChange.send()
+        imageURL = old //refresh?
+    }
+    
     func failedToLoadImage(error: Error) {
         debugPrint("!!! error \(error)")
         if retryCount > 2 {
             altMessage = "Failed"
-            //frameWidth = nil
+            frameWidth = nil
+        } else {
+            retryCount += 1
+            Task { @MainActor in
+                try await Task.sleep(nanoseconds: 1000_000 * 1_000_000_000) // sleep for millisecond.....
+                refreshImageURL()
+            }
         }
-        
-        retryCount += 1
     }
 }
 
@@ -65,6 +86,9 @@ struct CharacterListCell: View {
                     if let image = phase.image {
                         image.resizable()
                         .scaledToFit()
+                        .onAppear {
+                            viewModel.loadedImage() //
+                        }
                     } else if let error = phase.error {
                         ZStack {
                             if let message = viewModel.altMessage {

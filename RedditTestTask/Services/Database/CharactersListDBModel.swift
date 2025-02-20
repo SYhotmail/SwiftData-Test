@@ -39,21 +39,27 @@ final class CharactersListDBModel: ModelConvertable {
     // MARK: - PageInfo
     @Model
     final class PageInfo: ModelConvertable {
-        @Attribute(.unique) var count: Int
+        var count: Int
         var pages: Int
+        
         var next: String?
         var prev: String?
         
-        init(count: Int,
+        @Attribute(.unique) var id: String
+        
+        init(id: String,
+             count: Int,
              pages: Int,
              next: String?,
              prev: String?) {
             self.count = count
             self.pages = pages
+            self.id = id
         }
         
         convenience init(model: CharactersListModel.PageInfo) {
-            self.init(count: model.count,
+            self.init(id: model.id,
+                      count: model.count,
                       pages: model.pages,
                       next: model.next,
                       prev: model.prev)
@@ -73,7 +79,7 @@ final class CharactersListDBModel: ModelConvertable {
         @Attribute(.unique) var id: Int
         var name: String
         var status: CharactersListModel.Status?
-        var species: CharactersListModel.Species?
+        var species: String?
         var type: String
         var gender: CharactersListModel.Gender?
         var origin: CharactersListModel.Location
@@ -83,7 +89,18 @@ final class CharactersListDBModel: ModelConvertable {
         var url: String
         var created: String
         
-        init(id: Int, name: String, status: CharactersListModel.Status?, species: CharactersListModel.Species?, type: String, gender: CharactersListModel.Gender?, origin: CharactersListModel.Location, location: CharactersListModel.Location, image: String?, episode: [String], url: String, created: String) {
+        init(id: Int,
+             name: String,
+             status: CharactersListModel.Status?,
+             species: String?,
+             type: String,
+             gender: CharactersListModel.Gender?,
+             origin: CharactersListModel.Location,
+             location: CharactersListModel.Location,
+             image: String?,
+             episode: [String],
+             url: String,
+             created: String) {
             self.id = id
             self.name = name
             self.status = status

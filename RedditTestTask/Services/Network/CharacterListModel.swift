@@ -9,23 +9,23 @@ import Foundation
 
 // MARK: - CharactersListModel
 //TODO: remove Encodable... JSON 2 model
-struct CharactersListModel: Decodable, Encodable {
+struct CharactersListModel: Decodable, Encodable, Sendable {
     let info: PageInfo
     let results: [PageResult]
 
     // MARK: - PageInfo
-    struct PageInfo: Decodable, Encodable {
+    struct PageInfo: Decodable, Encodable, Sendable {
         let count, pages: Int
         let next: String?
         let prev: String?
     }
     
     // MARK: - PageThemeResult
-    struct PageResult: Decodable, Encodable {
+    struct PageResult: Decodable, Encodable, Sendable {
         let id: Int
         let name: String
         let status: Status?
-        let species: Species?
+        let species: String?
         let type: String
         let gender: Gender?
         let origin, location: Location
@@ -36,25 +36,20 @@ struct CharactersListModel: Decodable, Encodable {
     }
     
     
-    enum Gender: String, Decodable, Encodable {
+    enum Gender: String, Decodable, Encodable, Sendable {
         case female = "Female"
         case male = "Male"
         case unknown
+        case genderless = "Genderless"
     }
 
     // MARK: - PageThemeLocation
-    struct Location: Decodable, Encodable {
+    struct Location: Decodable, Encodable, Sendable {
         let name: String
         let url: String
     }
 
-    enum Species: String, Decodable, Encodable {
-        case alien = "Alien"
-        case human = "Human"
-        case unknown
-    }
-
-    enum Status: String, Decodable, Encodable {
+    enum Status: String, Decodable, Encodable, Sendable {
         case alive = "Alive"
         case dead = "Dead"
         case unknown

@@ -23,10 +23,24 @@ struct CharactersListView: View {
                 Section {
                     ForEach(section.characters) { character in
                         CharacterListCell(viewModel: character)
+                            .onAppear {
+                                viewModel.willAppear(characterVM: character)
+                            }
+                        
+                        if viewModel.isLoadingAndLastRow(characterVM: character) {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                        } else {
+                            EmptyView()
+                        }
                     }
                 }
-                
-            }.alert(isPresented: $viewModel.errorDuringLoad) {
+            }.refreshable(action: {
+                Task(priority: .userInitiated) {
+                    viewModel.loadCharactersPage(force: true)
+                }
+            })
+            .alert(isPresented: $viewModel.errorDuringLoad) {
                 Alert(title: Text("Failed to load"),
                       message: Text(viewModel.errorLoadingMessage ?? ""),
                       dismissButton: .default(Text("OK")))
@@ -52,7 +66,7 @@ struct CharactersListView: View {
         }
         .onAppear {
             viewModel.modelContext = modelContext //just for safety..
-            viewModel.loadCharacters()
+            viewModel.reloadCharacters(once: true) //load once...
         }
     }
 }
