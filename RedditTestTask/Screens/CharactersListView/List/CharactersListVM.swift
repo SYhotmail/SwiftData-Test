@@ -12,12 +12,14 @@ import SwiftUI
 import SwiftData
 import Synchronization
 
-//TODO: - ObservationIgnored
-// @Observable
-final class CharactersListVM: ObservableObject, @unchecked Sendable {
+@Observable //used to be Observable Object...
+final class CharactersListVM: @unchecked Sendable {
+    @ObservationIgnored
     let service: NetworkServiceProtocol
+    @ObservationIgnored //ignore Publisher..
     private var cancellable = Set<AnyCancellable>()
     
+    @ObservationIgnored
     var modelContext: ModelContext! {
         didSet {
             guard let modelContext, oldValue !== modelContext else {
@@ -26,6 +28,20 @@ final class CharactersListVM: ObservableObject, @unchecked Sendable {
             
             Task { @MainActor in
                 defineCharacters()
+            }
+        }
+    }
+    
+    let errorDuringLoadSubject = CurrentValueSubject<Bool,Never>(false)
+    
+    var errorDuringLoad: Bool {
+        get {
+            access(keyPath: \.errorDuringLoad)
+            return errorDuringLoadSubject.value
+        }
+        set {
+            withMutation(keyPath: \.errorDuringLoad) {
+                errorDuringLoadSubject.value = newValue
             }
         }
     }
@@ -77,33 +93,95 @@ final class CharactersListVM: ObservableObject, @unchecked Sendable {
         bind()
     }
     
-    @Published private(set)var characterSections = [CharactersSectionViewModel]()
-    @MainActor @Published var isLoading: Bool?
-    @MainActor @Published var errorLoadingMessage: String?
-    @MainActor @Published var errorDuringLoad = false
-    @MainActor @Published var searchableText: String = ""
+    private let characterSectionsSubject = CurrentValueSubject<[CharactersSectionViewModel], Never>([])
+    private(set)var characterSections: [CharactersSectionViewModel] {
+        get {
+            access(keyPath: \.characterSections)
+            return characterSectionsSubject.value
+        }
+        set {
+            withMutation(keyPath: \.characterSections) {
+                characterSectionsSubject.value = newValue
+            }
+        }
+    }
     
-    @MainActor @Published var filteredCharacterSections = [CharactersSectionViewModel]()
+    let searchableTextSubject = CurrentValueSubject<String, Never>("")
+    private(set)var searchableText: String {
+        get {
+            access(keyPath: \.searchableText)
+            return searchableTextSubject.value
+        }
+        set {
+            withMutation(keyPath: \.searchableText) {
+                searchableTextSubject.value = newValue
+            }
+        }
+    }
     
+    private let isLoadingSubject = CurrentValueSubject<Bool?, Never>(nil)
+    private(set)var isLoading: Bool? {
+        get {
+            access(keyPath: \.isLoading)
+            return isLoadingSubject.value
+        }
+        set {
+            withMutation(keyPath: \.isLoading) {
+                isLoadingSubject.value = newValue
+            }
+        }
+    }
+    
+    private let errorLoadingMessageSubject = CurrentValueSubject<String?,Never>(nil)
+    private(set)var errorLoadingMessage: String? {
+        get {
+            access(keyPath: \.errorLoadingMessage)
+            return errorLoadingMessageSubject.value
+        }
+        set {
+            withMutation(keyPath: \.errorLoadingMessage) {
+                errorLoadingMessageSubject.value = newValue
+            }
+        }
+    }
+    
+    var filteredCharacterSections: [CharactersSectionViewModel]!
+    
+    @ObservationIgnored
     private var task: Task<Void, Never>!
+    @ObservationIgnored
     private let loadingURL = Mutex<URL?>(nil)
+    @ObservationIgnored
     private let loadedURL = Mutex<URL??>(nil)
     
     private func bind() {
-        $errorLoadingMessage.map { $0?.isEmpty == false }
-            .assign(to: &$errorDuringLoad)
+        errorLoadingMessageSubject.map { $0?.isEmpty == false } //CurrentValueSubject, used to be: $errorLoadingMessage
+            .receive(on: DispatchQueue.main)
+            .subscribe(errorDuringLoadSubject)
+            .store(in: &cancellable)
         
-        $characterSections.combineLatest($searchableText.removeDuplicates())
+        characterSectionsSubject.combineLatest(searchableTextSubject.removeDuplicates())
+            .dropFirst()
             .receive(on: DispatchQueue.global(qos: .userInitiated))
-            .map { section, text  in
+            .map { sections, text  in
                 guard !text.isEmpty else {
-                    return section
+                    return sections
                 }
                 //TODO: add filtering inside sections.....
-                return section.filter { $0.characters.contains(where: {  $0.officialName.contains(text)}) }
+                let filteredSections = sections.filter { $0.characters.contains(where: { $0.officialName.lowercased().contains(text.lowercased()) }) }
+                guard !filteredSections.isEmpty else {
+                    return []
+                }
+                
+                
+                return filteredSections.map { filteredSection in CharactersSectionViewModel(pageInfo: filteredSection.pageInfo,
+                                                                                            characters: filteredSection.characters.filter { $0.officialName.lowercased().contains(text.lowercased()) }) }
+                
             }
             .receive(on: DispatchQueue.main)
-            .assign(to: &$filteredCharacterSections)
+            .sink { [unowned self] filteredCharacterSections in
+                self.filteredCharacterSections = filteredCharacterSections
+            }.store(in: &cancellable)
     }
     
     private func isLoadingSameCharactersPage(url: URL?) -> Bool {
@@ -207,7 +285,7 @@ final class CharactersListVM: ObservableObject, @unchecked Sendable {
             
             let prevURLRaw = characterSections.last.flatMap { $0.pageInfo.prev }
             let prevURL = prevURLRaw.flatMap { URL(string: $0) }
-            debugPrint("!!! \(#function) nextURL \(nextURL) prevURL \(prevURL)")
+            //debugPrint("!!! \(#function) nextURL \(nextURL) prevURL \(prevURL)")
             run = (loadingURL.withLock({ $0 }) != nextURL && loadedURL.withLock({ $0 }) != prevURL)
             url = nextURL
         }
@@ -235,5 +313,25 @@ final class CharactersListVM: ObservableObject, @unchecked Sendable {
     
     deinit {
         disposeTask()
+    }
+}
+
+
+extension CurrentValueSubject {
+    func binding(transactionBlock: ((Transaction) -> Void)? = nil) -> Binding<Output> {
+        binding(transactionBlock: transactionBlock, defaultValue: value)
+    }
+    
+    func binding(transactionBlock: ((Transaction) -> Void)? = nil, defaultValue: Output) -> Binding<Output> {
+        let res = Binding<Output?>{ [weak self] in
+            self?.value
+        } set: { [weak self] (value, transaction) in
+            if let value {
+                self?.send(value)
+            }
+            transactionBlock?(transaction)
+        }
+        
+        return .init(res) ?? .constant(defaultValue)
     }
 }

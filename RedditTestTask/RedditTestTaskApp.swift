@@ -10,6 +10,8 @@ import SwiftData
 
 @main
 struct RedditTestTaskApp: App {
+    @State var networkService = NetworkService()
+    
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             CharactersListDBModel.self,
@@ -25,7 +27,7 @@ struct RedditTestTaskApp: App {
 
     var body: some Scene {
         WindowGroup {
-            CharactersListView(viewModel: .init(service: NetworkService()))
+            CharactersListView().environment(CharactersListVM(service: networkService))
         }
         .modelContainer(sharedModelContainer)
     }

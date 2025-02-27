@@ -10,16 +10,17 @@ import SwiftUI
 import SwiftData //
 
 struct CharactersListView: View {
-    @ObservedObject var viewModel: CharactersListVM
+    //can be @State, var... not @ObservedObject...
+    @Environment(CharactersListVM.self) var viewModel
     @Environment(\.modelContext) var modelContext {
         didSet {
-            viewModel.modelContext = modelContext
+            updateModelContext()
         }
     }
     
     var body: some View {
         NavigationStack {
-            List(viewModel.filteredCharacterSections) { section in
+            List(viewModel.filteredCharacterSections ?? []) { section in
                 Section {
                     ForEach(section.characters) { character in
                         CharacterListCell(viewModel: character)
@@ -40,21 +41,20 @@ struct CharactersListView: View {
                     viewModel.loadCharactersPage(force: true)
                 }
             })
-            .alert(isPresented: $viewModel.errorDuringLoad) {
+            .alert(isPresented: viewModel.errorDuringLoadSubject.binding()) {
                 Alert(title: Text("Failed to load"),
                       message: Text(viewModel.errorLoadingMessage ?? ""),
                       dismissButton: .default(Text("OK")))
             } //Search wasn't in the task...
-            /*.searchable(text: $viewModel.searchableText, prompt: Text("Character to search")) */
+            .searchable(text: viewModel.searchableTextSubject.binding(),
+                        prompt: Text("Character to search"))
             .overlay {
                 if let scheduled = viewModel.isLoading {
                     if scheduled {
                         ProgressView().progressViewStyle(.circular)
                             .tint(.gray)
-                    }
-                    else if viewModel.filteredCharacterSections.isEmpty {
-                        EmptyView()
-                        //ContentUnavailableView.search
+                    } else if let filteredCharacterSections = viewModel.filteredCharacterSections, filteredCharacterSections.isEmpty {
+                        ContentUnavailableView.search
                     } else {
                         EmptyView()
                     }
@@ -65,9 +65,13 @@ struct CharactersListView: View {
             .navigationTitle("Characters List")
         }
         .onAppear {
-            viewModel.modelContext = modelContext //just for safety..
+            updateModelContext() //just for safety..
             viewModel.reloadCharacters(once: true) //load once...
         }
+    }
+    
+    private func updateModelContext() {
+        viewModel.modelContext = modelContext
     }
 }
 
@@ -81,6 +85,7 @@ private extension ModelContainer {
 }
 
 #Preview {
-    CharactersListView(viewModel: .init(service: NetworkService()))
+    CharactersListView()
+        .environment(CharactersListVM(service: NetworkService()))
         .modelContainer(try! ModelContainer.new())
 }
