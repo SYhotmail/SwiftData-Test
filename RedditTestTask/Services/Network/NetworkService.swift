@@ -11,11 +11,16 @@ enum NetworkError: Error {
     case invalidResponse(URLResponse)
     case error(any Error)
     case invalidInputPageInfo(CharactersListModel.PageInfo)
+    case invalidParameter(String)
 }
 
 protocol NetworkServiceProtocol: Sendable {
     func getAllCharacters(url: URL?) async throws(NetworkError) -> CharactersListModel
     func getAllCharacters() async throws(NetworkError) -> CharactersListModel
+}
+
+protocol NetworkImageServiceProtocol: Sendable {
+    func downloadImageTemporary(from url: URL) async throws(NetworkError) -> URL
 }
 
 extension NetworkServiceProtocol {
@@ -56,5 +61,24 @@ struct NetworkService: NetworkServiceProtocol {
             throw NetworkError.error(error)
         }
         
+    }
+}
+
+extension NetworkService: NetworkImageServiceProtocol {
+    func downloadImageTemporary(from url: URL) async throws(NetworkError) -> URL {
+        do {
+            let request = URLRequest(url: url)
+            let tuple = try await urlSession.download(for: request)
+            
+            guard let response = tuple.1 as? HTTPURLResponse, response.statusCode == 200 else {
+                throw NetworkError.invalidResponse(tuple.1)
+            }
+            let url = tuple.0
+            return url
+        }
+        catch {
+            debugPrint("!!! \(error)")
+            throw NetworkError.error(error)
+        }
     }
 }

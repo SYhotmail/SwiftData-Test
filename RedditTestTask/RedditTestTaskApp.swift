@@ -27,7 +27,8 @@ struct RedditTestTaskApp: App {
 
     var body: some Scene {
         WindowGroup {
-            CharactersListView().environment(CharactersListVM(service: networkService))
+            CharactersListView().environment(CharactersListVM(service: networkService,
+                                                              imageProvider: ProcessingActor()))
         }
         .modelContainer(sharedModelContainer)
     }

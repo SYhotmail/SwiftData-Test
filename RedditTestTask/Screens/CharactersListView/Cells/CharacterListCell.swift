@@ -13,29 +13,29 @@ struct CharacterListCell: View {
     var body: some View {
         VStack {
             HStack {
-                AsyncImage(url: viewModel.imageURL) { phase in
-                    if let image = phase.image {
-                        image.resizable()
-                        .scaledToFit()
-                        .onAppear {
-                            viewModel.loadedImage() //
-                        }
-                    } else if let error = phase.error {
-                        ZStack {
-                            if let message = viewModel.altMessage {
-                                Text(message)
-                                    .padding(10)
-                                    .multilineTextAlignment(.leading)
-                                    .lineLimit(nil)
-                            } else {
-                                Image(systemName: "repeat.circle.fill")
-                                    .onTapGesture {
-                                        viewModel.failedToLoadImage(error: error)
-                                    }
-                            }
-                        }
-                    } else {
+                Group {
+                    if let image = viewModel.localImage {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                    } else if let message = viewModel.altMessage {
+                        Text(message)
+                            .padding(10)
+                            .multilineTextAlignment(.leading)
+                            .lineLimit(nil)
+                    } else if viewModel.isLoading  {
+                        /*Image(systemName: "repeat.circle.fill")
+                         .onTapGesture {
+                         viewModel.failedToLoadImage(error: error)
+                         } */
                         ProgressView().progressViewStyle(.circular)
+                    } else if !viewModel.imageCanBeLoaded {
+                        Image(systemName: "repeat.circle.fill")
+                            .onTapGesture(perform: viewModel.reload)
+                    } else {
+                        EmptyView().onAppear {
+                            assert(false, "can't be here!")
+                        }
                     }
                 }
                 .frame(width: viewModel.frameWidth)
@@ -46,5 +46,10 @@ struct CharacterListCell: View {
                 Spacer()
             }
         }
+        .task {
+            await viewModel.onAppear()
+        }
+        .onAppear(perform: viewModel.onAppear)
+        .onDisappear(perform: viewModel.onDissappear)
     }
 }

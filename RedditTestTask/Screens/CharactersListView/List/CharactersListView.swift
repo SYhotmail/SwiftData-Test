@@ -86,6 +86,7 @@ private extension ModelContainer {
 
 #Preview {
     CharactersListView()
-        .environment(CharactersListVM(service: NetworkService()))
+        .environment(CharactersListVM(service: NetworkService(),
+                                      imageProvider: ProcessingActor()))
         .modelContainer(try! ModelContainer.new())
 }

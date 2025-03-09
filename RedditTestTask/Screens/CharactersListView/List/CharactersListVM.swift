@@ -16,7 +16,9 @@ import Synchronization
 @Observable //used to be Observable Object...
 final class CharactersListVM /*: @unchecked Sendable*/ {
     @ObservationIgnored
-    let service: NetworkServiceProtocol
+    private let service: NetworkServiceProtocol
+    @ObservationIgnored
+    private let imageProvider: ImageProviderType
     @ObservationIgnored //ignore Publisher..
     private var cancellable = Set<AnyCancellable>()
     
@@ -56,7 +58,8 @@ final class CharactersListVM /*: @unchecked Sendable*/ {
         
         let fetchDescriptor = FetchDescriptor<CharactersListDBModel>()
         if let charactersFromDB = try? modelContext.fetch(fetchDescriptor) {
-            self.characterSections = charactersFromDB.map { CharactersSectionViewModel(model: $0.model()) }
+            characterSections = charactersFromDB.map { CharactersSectionViewModel(model: $0.model(),
+                                                                                  imageProvider: imageProvider) }
         }
     }
     
@@ -90,9 +93,10 @@ final class CharactersListVM /*: @unchecked Sendable*/ {
         try modelContext.save()
     }
     
-    init(service: NetworkServiceProtocol) {
+    init(service: NetworkServiceProtocol,
+         imageProvider: ImageProviderType) {
         self.service = service
-        assert(Thread.isMainThread)
+        self.imageProvider = imageProvider
         bind()
     }
     
@@ -166,7 +170,7 @@ final class CharactersListVM /*: @unchecked Sendable*/ {
         characterSectionsSubject.combineLatest(searchableTextSubject.removeDuplicates())
             .dropFirst()
             .receive(on: DispatchQueue.global(qos: .userInitiated))
-            .map { sections, text  in
+            .map { [unowned self] sections, text  in
                 guard !text.isEmpty else {
                     return sections
                 }
@@ -177,7 +181,8 @@ final class CharactersListVM /*: @unchecked Sendable*/ {
                 }
                 
                 
-                return filteredSections.map { filteredSection in CharactersSectionViewModel(pageInfo: filteredSection.pageInfo,
+                return filteredSections.map { filteredSection in CharactersSectionViewModel(imageProvider: self.imageProvider,
+                                                                                            pageInfo: filteredSection.pageInfo,
                                                                                             characters: filteredSection.characters.filter { $0.officialName.lowercased().contains(text.lowercased()) }) }
                 
             }
@@ -216,7 +221,8 @@ final class CharactersListVM /*: @unchecked Sendable*/ {
             let backendSection = try await service.getAllCharacters(url: url)
             debugPrint("!!! backendSection.pageInfo \(backendSection.info)")
             debugPrint("!!! ids \(backendSection.results.map { $0.id })")
-            let section = CharactersSectionViewModel(model: backendSection)
+            let section = CharactersSectionViewModel(model: backendSection,
+                                                     imageProvider: imageProvider)
             Task { @MainActor [section, backendSection] in
                 guard isLoadingSameCharactersPage(url: url) else {
                     return
@@ -322,11 +328,12 @@ final class CharactersListVM /*: @unchecked Sendable*/ {
 
 
 extension CurrentValueSubject {
-    func binding(transactionBlock: ((Transaction) -> Void)? = nil) -> Binding<Output> {
+    typealias TranscationVoidBlock = @Sendable (Transaction) -> Void
+    func binding(transactionBlock: TranscationVoidBlock? = nil) -> Binding<Output> {
         binding(transactionBlock: transactionBlock, defaultValue: value)
     }
     
-    func binding(transactionBlock: ((Transaction) -> Void)? = nil, defaultValue: Output) -> Binding<Output> {
+    func binding(transactionBlock: TranscationVoidBlock? = nil, defaultValue: Output) -> Binding<Output> {
         let res = Binding<Output?>{ [weak self] in
             self?.value
         } set: { [weak self] (value, transaction) in

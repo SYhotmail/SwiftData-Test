@@ -18,67 +18,125 @@ final class CharactersSectionViewModel: Identifiable {
     @ObservationIgnored
     let pageInfo: CharactersListModel.PageInfo
     var characters = [CharacterListCellViewModel]()
-    
+    let imageProvider: any ImageProviderType
     var id: String { pageInfo.id }
     
-    convenience init(model: CharactersListModel) {
-        self.init(pageInfo: model.info,
-                  characters: model.results.map { .init(model: $0) })
+    convenience init(model: CharactersListModel,
+                     imageProvider: any ImageProviderType) {
+        self.init(imageProvider: imageProvider,
+                  pageInfo: model.info,
+                  characters: model.results.map { .init(model: $0,
+                                                        imageProvider: imageProvider) })
     }
     
-    init(pageInfo: CharactersListModel.PageInfo,
+    init(imageProvider: any ImageProviderType,
+         pageInfo: CharactersListModel.PageInfo,
          characters: [CharacterListCellViewModel]) {
+        self.imageProvider = imageProvider
         self.pageInfo = pageInfo
         self.characters = characters
     }
 }
 
 @Observable
-@MainActor
-final class CharacterListCellViewModel: Identifiable {
-    var imageURL: URL?
-    var officialName: String = ""
-    var altMessage: String?
-    var frameWidth: CGFloat? = 50
+final class CharacterListCellViewModel: Identifiable, Sendable {
+    private let imageURL: URL?
+    let officialName: String
     
     @ObservationIgnored
+    let imageProvider: any ImageProviderType
+    
+    @MainActor
+    private(set)var isLoading = false
+    
+    @MainActor
+    private(set)var altMessage: String?
+    @MainActor
+    private(set)var frameWidth: CGFloat? = 50
+    
+    @MainActor
+    private(set)var localImage: UIImage?
+    
+    @MainActor
     private var retryCount = 0
     
-    let model: CharactersListModel.PageResult
-    nonisolated var id: Int { model.id }
+    @MainActor
+    private var isVisible: Bool?
     
-    nonisolated init(model: CharactersListModel.PageResult) {
-        self.model = model
-        define()
+    let id: Int
+    
+    init(model: CharactersListModel.PageResult,
+         imageProvider: any ImageProviderType) {
+        id = model.id
+        self.imageProvider = imageProvider
+        imageURL = model.image.flatMap { .init(string: $0) }
+        officialName = model.name
     }
     
-    private nonisolated func define() {
-        Task { @MainActor in
-            imageURL = model.image.flatMap { .init(string: $0) }
-            officialName = model.name
+    @MainActor
+    func onAppear() async {
+        guard let imageURL, localImage == nil else {
+            return
+        }
+        
+        do {
+            isVisible = nil
+            isLoading = true
+            let localImage = try await imageProvider.image(at: imageURL)
+            if isVisible != false {
+                frameWidth = 50
+                self.localImage = localImage //if hidden then reset...
+            }
+        }
+        catch {
+            failedToLoadImage(error: error)
+        }
+        isLoading = false
+    }
+    
+    @MainActor
+    func onDissappear() {
+        localImage = nil
+        isVisible = false
+    }
+    
+    @MainActor
+    func onAppear() {
+        isVisible = true
+    }
+    
+    @MainActor
+    var imageCanBeLoaded: Bool {
+        imageURL.flatMap { _ in retryCount < 3 } == true
+    }
+    
+    @MainActor
+    func reload() {
+        guard !isLoading else {
+            return
+        }
+        
+        if !imageCanBeLoaded {
+            retryCount = 0
+        }
+        Task {
+            await onAppear()
         }
     }
     
-    func loadedImage() {
-        frameWidth = 50
-    }
-    
-    private func refreshImageURL() {
-        let old = imageURL
-        imageURL = old //will refresh
-    }
-    
-    func failedToLoadImage(error: Error) {
+    @MainActor
+    private func failedToLoadImage(error: Error) {
         debugPrint("!!! error \(error)")
-        if retryCount > 2 {
+        guard imageCanBeLoaded else {
             altMessage = "Failed"
             frameWidth = nil
-        } else {
-            retryCount += 1
-            Task { @MainActor in
-                try await Task.sleep(nanoseconds: 1 * 1_000_000_000) //one second...
-                refreshImageURL()
-            }
+            return
+        }
+        
+        retryCount += 1
+        Task {
+            try await Task.sleep(nanoseconds: 1 * 1_000_000_000) //one second...
+            await onAppear()
         }
     }
 }
