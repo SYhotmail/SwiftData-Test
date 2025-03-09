@@ -34,9 +34,10 @@ final class CharactersSectionViewModel: Identifiable {
 }
 
 @Observable
+@MainActor
 final class CharacterListCellViewModel: Identifiable {
     var imageURL: URL?
-    var officialName: String
+    var officialName: String = ""
     var altMessage: String?
     var frameWidth: CGFloat? = 50
     
@@ -44,19 +45,24 @@ final class CharacterListCellViewModel: Identifiable {
     private var retryCount = 0
     
     let model: CharactersListModel.PageResult
-    var id: Int { model.id }
+    nonisolated var id: Int { model.id }
     
-    init(model: CharactersListModel.PageResult) {
+    nonisolated init(model: CharactersListModel.PageResult) {
         self.model = model
-        imageURL = model.image.flatMap { .init(string: $0) }
-        officialName = model.name
+        define()
+    }
+    
+    private nonisolated func define() {
+        Task { @MainActor in
+            imageURL = model.image.flatMap { .init(string: $0) }
+            officialName = model.name
+        }
     }
     
     func loadedImage() {
         frameWidth = 50
     }
     
-    @MainActor
     private func refreshImageURL() {
         let old = imageURL
         imageURL = old //will refresh
@@ -70,7 +76,7 @@ final class CharacterListCellViewModel: Identifiable {
         } else {
             retryCount += 1
             Task { @MainActor in
-                try await Task.sleep(nanoseconds: 1000_000 * 1_000_000_000) // sleep for millisecond.....
+                try await Task.sleep(nanoseconds: 1 * 1_000_000_000) //one second...
                 refreshImageURL()
             }
         }

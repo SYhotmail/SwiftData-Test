@@ -7,13 +7,14 @@
 
 import Foundation
 import SwiftUICore
-import Combine
+@preconcurrency import Combine
 import SwiftUI
 import SwiftData
 import Synchronization
 
+@MainActor
 @Observable //used to be Observable Object...
-final class CharactersListVM: @unchecked Sendable {
+final class CharactersListVM /*: @unchecked Sendable*/ {
     @ObservationIgnored
     let service: NetworkServiceProtocol
     @ObservationIgnored //ignore Publisher..
@@ -26,9 +27,10 @@ final class CharactersListVM: @unchecked Sendable {
                 return
             }
             
-            Task { @MainActor in
-                defineCharacters()
-            }
+            defineCharacters()
+            /*Task {
+                await defineCharacters()
+            }*/
         }
     }
     
@@ -90,6 +92,7 @@ final class CharactersListVM: @unchecked Sendable {
     
     init(service: NetworkServiceProtocol) {
         self.service = service
+        assert(Thread.isMainThread)
         bind()
     }
     
@@ -197,10 +200,10 @@ final class CharactersListVM: @unchecked Sendable {
         }
     }
     
-    private func loadCharactersPageAsync(url: URL?, eraseOld: Bool = false) async {
+    nonisolated private func loadCharactersPageAsync(url: URL?, eraseOld: Bool = false) async {
         
         Task { @MainActor in
-            self.isLoading = true
+            isLoading = true
         }
         
         var errorLoadingMessage: String?
@@ -235,9 +238,9 @@ final class CharactersListVM: @unchecked Sendable {
             errorLoadingMessage = error.localizedDescription
         }
         
-        Task { @MainActor [errorLoadingMessage] in
+        Task { @MainActor in
             self.errorLoadingMessage = errorLoadingMessage
-            self.isLoading = false
+            isLoading = false
         }
     }
     
@@ -312,7 +315,8 @@ final class CharactersListVM: @unchecked Sendable {
     }
     
     deinit {
-        disposeTask()
+        assert(Thread.isMainThread)
+        //disposeTask()
     }
 }
 
