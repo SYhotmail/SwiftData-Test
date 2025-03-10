@@ -21,7 +21,6 @@ protocol ModelConvertable {
 final class CharactersListDBModel: ModelConvertable {
     @Relationship(.unique,
                   deleteRule: .cascade,
-                  maximumModelCount: 1,
                   inverse: \PageInfo.charactersListDBModel) var info: PageInfo
     
     @Relationship(deleteRule: .cascade,
@@ -61,10 +60,10 @@ final class CharactersListDBModel: ModelConvertable {
         var next: String?
         var prev: String?
         
-        var charactersListDBModel: CharactersListDBModel!
+        var charactersListDBModel: CharactersListDBModel?
         
         
-        @Attribute(.unique) var id: String
+        var id: String
         
         init(id: String,
              count: Int,

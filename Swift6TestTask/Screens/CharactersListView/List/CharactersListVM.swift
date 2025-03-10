@@ -16,9 +16,9 @@ import Synchronization
 @Observable //used to be Observable Object...
 final class CharactersListVM /*: @unchecked Sendable*/ {
     @ObservationIgnored
-    private let service: NetworkServiceProtocol
+    private let service: any NetworkServiceProtocol
     @ObservationIgnored
-    private let imageProvider: ImageProviderType
+    let imageProvider: any ImageProviderType
     @ObservationIgnored //ignore Publisher..
     private var cancellable = Set<AnyCancellable>()
     
@@ -63,6 +63,7 @@ final class CharactersListVM /*: @unchecked Sendable*/ {
         }
     }
     
+    
     @MainActor
     private func eraseDatabase(save: Bool = true) throws {
         guard let modelContext else {
@@ -93,8 +94,8 @@ final class CharactersListVM /*: @unchecked Sendable*/ {
         try modelContext.save()
     }
     
-    init(service: NetworkServiceProtocol,
-         imageProvider: ImageProviderType) {
+    init(service: any NetworkServiceProtocol,
+         imageProvider: any ImageProviderType) {
         self.service = service
         self.imageProvider = imageProvider
         bind()

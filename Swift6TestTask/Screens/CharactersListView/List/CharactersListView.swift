@@ -10,12 +10,15 @@ import SwiftUI
 import SwiftData //
 import SectionedQuery
 
+extension SectionedQuery: Sendable where SectionIdentifier: Sendable, Element: Sendable {
+    
+}
+
 struct CharactersListView: View {
     
     init() {
         _sections = .init(\.nameFirstLetter,
-                           sort: [SortDescriptor(\.name,
-                                                  order: .reverse)])
+                           sort: [SortDescriptor(\.name)])
     }
     
     //can be @State, var... not @ObservedObject...
@@ -27,15 +30,15 @@ struct CharactersListView: View {
     }
     
     @SectionedQuery(\.nameFirstLetter,
-                     sort: [SortDescriptor(\.name,
-                                            order: .reverse)])
+                     sort: [SortDescriptor(\.name)]) // TODO: add filtering support...
     private var sections: SectionedResults<String, CharactersListDBModel.PageResult>
     
     var body: some View {
         NavigationStack {
-            List(viewModel.filteredCharacterSections ?? []) { section in
+            List(sections) { section in
                 Section {
-                    ForEach(section.characters) { character in
+                    ForEach(section) { item in
+                        let character = CharacterListCellViewModel(model: item.model(), imageProvider: viewModel.imageProvider)
                         CharacterListCell(viewModel: character)
                             .onAppear {
                                 viewModel.willAppear(characterVM: character)
@@ -48,6 +51,8 @@ struct CharactersListView: View {
                             EmptyView()
                         }
                     }
+                } header: {
+                    Text(section.id)
                 }
             }.refreshable(action: {
                 Task(priority: .userInitiated) {
