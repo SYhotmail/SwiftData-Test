@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		21FE27D52D7F4A17007D210A /* SectionedQuery in Frameworks */ = {isa = PBXBuildFile; productRef = 21FE27D42D7F4A17007D210A /* SectionedQuery */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		21CA832F2D6395BA00AECEF9 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -17,19 +21,19 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		21CA831C2D6395B700AECEF9 /* RedditTestTask.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RedditTestTask.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		21CA832E2D6395BA00AECEF9 /* RedditTestTaskTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RedditTestTaskTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		21CA831C2D6395B700AECEF9 /* Swift6TestTask.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Swift6TestTask.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		21CA832E2D6395BA00AECEF9 /* Swift6TestTaskTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Swift6TestTaskTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		21CA831E2D6395B700AECEF9 /* RedditTestTask */ = {
+		21CA831E2D6395B700AECEF9 /* Swift6TestTask */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = RedditTestTask;
+			path = Swift6TestTask;
 			sourceTree = "<group>";
 		};
-		21CA83312D6395BA00AECEF9 /* RedditTestTaskTests */ = {
+		21CA83312D6395BA00AECEF9 /* Swift6TestTaskTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = RedditTestTaskTests;
+			path = Swift6TestTaskTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -39,6 +43,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				21FE27D52D7F4A17007D210A /* SectionedQuery in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -55,8 +60,8 @@
 		21CA83132D6395B700AECEF9 = {
 			isa = PBXGroup;
 			children = (
-				21CA831E2D6395B700AECEF9 /* RedditTestTask */,
-				21CA83312D6395BA00AECEF9 /* RedditTestTaskTests */,
+				21CA831E2D6395B700AECEF9 /* Swift6TestTask */,
+				21CA83312D6395BA00AECEF9 /* Swift6TestTaskTests */,
 				21CA831D2D6395B700AECEF9 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -64,8 +69,8 @@
 		21CA831D2D6395B700AECEF9 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				21CA831C2D6395B700AECEF9 /* RedditTestTask.app */,
-				21CA832E2D6395BA00AECEF9 /* RedditTestTaskTests.xctest */,
+				21CA831C2D6395B700AECEF9 /* Swift6TestTask.app */,
+				21CA832E2D6395BA00AECEF9 /* Swift6TestTaskTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -73,9 +78,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		21CA831B2D6395B700AECEF9 /* RedditTestTask */ = {
+		21CA831B2D6395B700AECEF9 /* Swift6TestTask */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 21CA83422D6395BA00AECEF9 /* Build configuration list for PBXNativeTarget "RedditTestTask" */;
+			buildConfigurationList = 21CA83422D6395BA00AECEF9 /* Build configuration list for PBXNativeTarget "Swift6TestTask" */;
 			buildPhases = (
 				21CA83182D6395B700AECEF9 /* Sources */,
 				21CA83192D6395B700AECEF9 /* Frameworks */,
@@ -86,18 +91,19 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				21CA831E2D6395B700AECEF9 /* RedditTestTask */,
+				21CA831E2D6395B700AECEF9 /* Swift6TestTask */,
 			);
-			name = RedditTestTask;
+			name = Swift6TestTask;
 			packageProductDependencies = (
+				21FE27D42D7F4A17007D210A /* SectionedQuery */,
 			);
 			productName = RedditTestTask;
-			productReference = 21CA831C2D6395B700AECEF9 /* RedditTestTask.app */;
+			productReference = 21CA831C2D6395B700AECEF9 /* Swift6TestTask.app */;
 			productType = "com.apple.product-type.application";
 		};
-		21CA832D2D6395BA00AECEF9 /* RedditTestTaskTests */ = {
+		21CA832D2D6395BA00AECEF9 /* Swift6TestTaskTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 21CA83452D6395BA00AECEF9 /* Build configuration list for PBXNativeTarget "RedditTestTaskTests" */;
+			buildConfigurationList = 21CA83452D6395BA00AECEF9 /* Build configuration list for PBXNativeTarget "Swift6TestTaskTests" */;
 			buildPhases = (
 				21CA832A2D6395BA00AECEF9 /* Sources */,
 				21CA832B2D6395BA00AECEF9 /* Frameworks */,
@@ -109,13 +115,13 @@
 				21CA83302D6395BA00AECEF9 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				21CA83312D6395BA00AECEF9 /* RedditTestTaskTests */,
+				21CA83312D6395BA00AECEF9 /* Swift6TestTaskTests */,
 			);
-			name = RedditTestTaskTests;
+			name = Swift6TestTaskTests;
 			packageProductDependencies = (
 			);
 			productName = RedditTestTaskTests;
-			productReference = 21CA832E2D6395BA00AECEF9 /* RedditTestTaskTests.xctest */;
+			productReference = 21CA832E2D6395BA00AECEF9 /* Swift6TestTaskTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
@@ -137,7 +143,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 21CA83172D6395B700AECEF9 /* Build configuration list for PBXProject "RedditTestTask" */;
+			buildConfigurationList = 21CA83172D6395B700AECEF9 /* Build configuration list for PBXProject "Swift6TestTask" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -146,13 +152,16 @@
 			);
 			mainGroup = 21CA83132D6395B700AECEF9;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				21FE27D32D7F4A17007D210A /* XCRemoteSwiftPackageReference "swiftdata-sectionedquery" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 21CA831D2D6395B700AECEF9 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				21CA831B2D6395B700AECEF9 /* RedditTestTask */,
-				21CA832D2D6395BA00AECEF9 /* RedditTestTaskTests */,
+				21CA831B2D6395B700AECEF9 /* Swift6TestTask */,
+				21CA832D2D6395BA00AECEF9 /* Swift6TestTaskTests */,
 			);
 		};
 /* End PBXProject section */
@@ -194,7 +203,7 @@
 /* Begin PBXTargetDependency section */
 		21CA83302D6395BA00AECEF9 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 21CA831B2D6395B700AECEF9 /* RedditTestTask */;
+			target = 21CA831B2D6395B700AECEF9 /* Swift6TestTask */;
 			targetProxy = 21CA832F2D6395BA00AECEF9 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -326,7 +335,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "\"RedditTestTask/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"Swift6TestTask/Preview Content\"";
 				DEVELOPMENT_TEAM = 44P2L32FL4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -356,7 +365,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "\"RedditTestTask/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"Swift6TestTask/Preview Content\"";
 				DEVELOPMENT_TEAM = 44P2L32FL4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -394,7 +403,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RedditTestTask.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/RedditTestTask";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Swift6TestTask.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Swift6TestTask";
 			};
 			name = Debug;
 		};
@@ -413,14 +422,14 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RedditTestTask.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/RedditTestTask";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Swift6TestTask.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Swift6TestTask";
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		21CA83172D6395B700AECEF9 /* Build configuration list for PBXProject "RedditTestTask" */ = {
+		21CA83172D6395B700AECEF9 /* Build configuration list for PBXProject "Swift6TestTask" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				21CA83402D6395BA00AECEF9 /* Debug */,
@@ -429,7 +438,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		21CA83422D6395BA00AECEF9 /* Build configuration list for PBXNativeTarget "RedditTestTask" */ = {
+		21CA83422D6395BA00AECEF9 /* Build configuration list for PBXNativeTarget "Swift6TestTask" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				21CA83432D6395BA00AECEF9 /* Debug */,
@@ -438,7 +447,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		21CA83452D6395BA00AECEF9 /* Build configuration list for PBXNativeTarget "RedditTestTaskTests" */ = {
+		21CA83452D6395BA00AECEF9 /* Build configuration list for PBXNativeTarget "Swift6TestTaskTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				21CA83462D6395BA00AECEF9 /* Debug */,
@@ -448,6 +457,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		21FE27D32D7F4A17007D210A /* XCRemoteSwiftPackageReference "swiftdata-sectionedquery" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/beechtom/swiftdata-sectionedquery";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.2.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		21FE27D42D7F4A17007D210A /* SectionedQuery */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 21FE27D32D7F4A17007D210A /* XCRemoteSwiftPackageReference "swiftdata-sectionedquery" */;
+			productName = SectionedQuery;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 21CA83142D6395B700AECEF9 /* Project object */;
 }

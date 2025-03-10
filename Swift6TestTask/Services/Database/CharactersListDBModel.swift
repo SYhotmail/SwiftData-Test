@@ -1,12 +1,13 @@
 //
 //  CharactersPageDBModel.swift
-//  RedditTestTask
+//  Swift6TestTask
 //
 //  Created by Siarhei Yakushevich on 17/02/2025.
 //
 
 import Foundation
 import SwiftData
+import CoreData
 
 protocol ModelConvertable {
     associatedtype ModelType
@@ -18,17 +19,32 @@ protocol ModelConvertable {
 // MARK: - PageThemeCharacters
 @Model
 final class CharactersListDBModel: ModelConvertable {
-    var info: PageInfo
-    var results: [PageResult]
+    @Relationship(.unique,
+                  deleteRule: .cascade,
+                  maximumModelCount: 1,
+                  inverse: \PageInfo.charactersListDBModel) var info: PageInfo
+    
+    @Relationship(deleteRule: .cascade,
+                  inverse: \PageResult.charactersListDBModel) var results: [PageResult]
+    
+    @Attribute(.unique) var id: String
     
     init(info: PageInfo, results: [PageResult]) {
+        self.id = info.id
         self.info = info
         self.results = results
+        
+        bindRelationships()
     }
     
     convenience init(model: CharactersListModel) {
         self.init(info: .init(model: model.info),
                   results: model.results.map { .init(model: $0) })
+    }
+    
+    private func bindRelationships() {
+        info.charactersListDBModel = self
+        results.forEach { $0.charactersListDBModel = self }
     }
     
     func model() -> CharactersListModel {
@@ -44,6 +60,9 @@ final class CharactersListDBModel: ModelConvertable {
         
         var next: String?
         var prev: String?
+        
+        var charactersListDBModel: CharactersListDBModel!
+        
         
         @Attribute(.unique) var id: String
         
@@ -77,7 +96,21 @@ final class CharactersListDBModel: ModelConvertable {
     @Model
     final class PageResult: ModelConvertable {
         @Attribute(.unique) var id: Int
+        
+        var charactersListDBModel: CharactersListDBModel!
+        
+        @Attribute(.spotlight)
         var name: String
+        
+        @Transient
+        var nameFirstLetter: String {
+            guard let ch = name.first else {
+                assertionFailure("No name!")
+                return ""
+            }
+            return String(ch)
+        }
+        
         var status: CharactersListModel.Status?
         var species: String?
         var type: String

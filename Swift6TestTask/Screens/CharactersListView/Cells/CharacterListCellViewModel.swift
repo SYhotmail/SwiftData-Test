@@ -1,6 +1,6 @@
 //
 //  CharacterListCellViewModel.swift
-//  RedditTestTask
+//  Swift6TestTask
 //
 //  Created by Siarhei Yakushevich on 27/02/2025.
 //

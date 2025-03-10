@@ -1,6 +1,6 @@
 //
 //  CharactersListView.swift
-//  RedditTestTask
+//  Swift6TestTask
 //
 //  Created by Siarhei Yakushevich on 17/02/2025.
 //
@@ -8,8 +8,16 @@
 
 import SwiftUI
 import SwiftData //
+import SectionedQuery
 
 struct CharactersListView: View {
+    
+    init() {
+        _sections = .init(\.nameFirstLetter,
+                           sort: [SortDescriptor(\.name,
+                                                  order: .reverse)])
+    }
+    
     //can be @State, var... not @ObservedObject...
     @Environment(CharactersListVM.self) var viewModel
     @Environment(\.modelContext) var modelContext {
@@ -17,6 +25,11 @@ struct CharactersListView: View {
             updateModelContext()
         }
     }
+    
+    @SectionedQuery(\.nameFirstLetter,
+                     sort: [SortDescriptor(\.name,
+                                            order: .reverse)])
+    private var sections: SectionedResults<String, CharactersListDBModel.PageResult>
     
     var body: some View {
         NavigationStack {
@@ -75,18 +88,9 @@ struct CharactersListView: View {
     }
 }
 
-private extension ModelContainer {
-    static func new() throws -> ModelContainer {
-        let schema = Schema([CharactersListDBModel.self])
-        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try ModelContainer(for: schema, configurations: [configuration])
-        return container
-    }
-}
-
 #Preview {
     CharactersListView()
         .environment(CharactersListVM(service: NetworkService(),
                                       imageProvider: ProcessingActor()))
-        .modelContainer(try! ModelContainer.new())
+        .modelContainer(try! DatabaseService.modelContainer(isStoredInMemoryOnly: true))
 }

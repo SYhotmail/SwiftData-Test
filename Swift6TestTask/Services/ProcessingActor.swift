@@ -1,6 +1,6 @@
 //
 //  ProcessingActor.swift
-//  RedditTestTask
+//  Swift6TestTask
 //
 //  Created by Siarhei Yakushevich on 07/03/2025.
 //

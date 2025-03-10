@@ -1,6 +1,6 @@
 //
 //  NetworkService.swift
-//  RedditTestTask
+//  Swift6TestTask
 //
 //  Created by Siarhei Yakushevich on 17/02/2025.
 //
