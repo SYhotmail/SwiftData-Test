@@ -10,41 +10,37 @@ import SwiftUI
 import SwiftData //
 import SectionedQuery
 
-extension SectionedQuery: Sendable where SectionIdentifier: Sendable, Element: Sendable {
-    
-}
 
 struct CharactersListView: View {
     
     init() {
-        _sections = .init(\.nameFirstLetter,
-                           sort: [SortDescriptor(\.name)])
+        _sections = CharactersListVM.sectionedQuery()
     }
     
     //can be @State, var... not @ObservedObject...
     @Environment(CharactersListVM.self) var viewModel
-    @Environment(\.modelContext) var modelContext {
-        didSet {
-            updateModelContext()
-        }
-    }
+    @Environment(\.modelContext) var modelContext
     
-    @SectionedQuery(\.nameFirstLetter,
-                     sort: [SortDescriptor(\.name)]) // TODO: add filtering support...
+    @SectionedQuery(\.nameFirstLetter)
     private var sections: SectionedResults<String, CharactersListDBModel.PageResult>
+    
+    private func listCellVM(item: CharactersListDBModel.PageResult) -> CharacterListCellViewModel {
+        viewModel.listCellVM(item: item)
+    }
     
     var body: some View {
         NavigationStack {
-            List(sections) { section in
+            List(sections.enumerated()) { index, section in
+                
                 Section {
-                    ForEach(section) { item in
-                        let character = CharacterListCellViewModel(model: item.model(), imageProvider: viewModel.imageProvider)
-                        CharacterListCell(viewModel: character)
-                            .onAppear {
-                                viewModel.willAppear(characterVM: character)
-                            }
+                    ForEach(section.enumerated) { rowIndex, item in
                         
-                        if viewModel.isLoadingAndLastRow(characterVM: character) {
+                        let character = listCellVM(item: item)
+                        CharacterListCell(viewModel: character)
+                            .task {
+                                await viewModel.willAppear(characterVM: character)
+                            }
+                        if viewModel.isLoading, index == sections.count - 1, rowIndex == section.items.count - 1 {
                             ProgressView()
                                 .progressViewStyle(.circular)
                         } else {
@@ -66,6 +62,9 @@ struct CharactersListView: View {
             } //Search wasn't in the task...
             .searchable(text: viewModel.searchableTextSubject.binding(),
                         prompt: Text("Character to search"))
+            .onReceive(viewModel.searchableTextSubject.removeDuplicates().eraseToAnyPublisher(), perform: { text in
+                //_sections = CharactersListVM.sectionedQuery(text: text)
+            })
             .overlay {
                 if let scheduled = viewModel.isLoading {
                     if scheduled {
@@ -81,21 +80,19 @@ struct CharactersListView: View {
                 }
             }
             .navigationTitle("Characters List")
+        }.task {
+            await viewModel.reloadCharacters(once: true) //load once...
         }
-        .onAppear {
-            updateModelContext() //just for safety..
-            viewModel.reloadCharacters(once: true) //load once...
-        }
-    }
-    
-    private func updateModelContext() {
-        viewModel.modelContext = modelContext
     }
 }
 
 #Preview {
+    let container = try! DatabaseService.modelContainer(isStoredInMemoryOnly: true)
+    let imageProvider = CachedImageProvider()
     CharactersListView()
         .environment(CharactersListVM(service: NetworkService(),
-                                      imageProvider: ProcessingActor()))
-        .modelContainer(try! DatabaseService.modelContainer(isStoredInMemoryOnly: true))
+                                      database: DatabaseService(container: container,
+                                                                imageProvider: imageProvider),
+                                      imageProvider: imageProvider))
+        .modelContainer(container)
 }

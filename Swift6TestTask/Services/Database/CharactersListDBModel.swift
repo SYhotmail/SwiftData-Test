@@ -19,12 +19,9 @@ protocol ModelConvertable {
 // MARK: - PageThemeCharacters
 @Model
 final class CharactersListDBModel: ModelConvertable {
-    @Relationship(.unique,
-                  deleteRule: .cascade,
-                  inverse: \PageInfo.charactersListDBModel) var info: PageInfo
+    @Relationship(deleteRule: .cascade) var info: PageInfo
     
-    @Relationship(deleteRule: .cascade,
-                  inverse: \PageResult.charactersListDBModel) var results: [PageResult]
+    @Relationship(deleteRule: .cascade) var results: [PageResult]
     
     @Attribute(.unique) var id: String
     
@@ -60,8 +57,7 @@ final class CharactersListDBModel: ModelConvertable {
         var next: String?
         var prev: String?
         
-        var charactersListDBModel: CharactersListDBModel?
-        
+        @Relationship(inverse: \CharactersListDBModel.info) var charactersListDBModel: CharactersListDBModel?
         
         var id: String
         
@@ -96,7 +92,7 @@ final class CharactersListDBModel: ModelConvertable {
     final class PageResult: ModelConvertable {
         @Attribute(.unique) var id: Int
         
-        var charactersListDBModel: CharactersListDBModel!
+        @Relationship(inverse: \CharactersListDBModel.results) var charactersListDBModel: CharactersListDBModel?
         
         @Attribute(.spotlight)
         var name: String

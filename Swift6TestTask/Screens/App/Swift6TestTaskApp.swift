@@ -14,8 +14,7 @@ struct Swift6TestTaskApp: App {
     
     var body: some Scene {
         WindowGroup {
-            CharactersListView().environment(CharactersListVM(service: container.networkService,
-                                                              imageProvider: container.imageProvider))
+            CharactersListView().environment(container.charactersListVM())
         }
         .modelContainer(container.modelContainer)
     }

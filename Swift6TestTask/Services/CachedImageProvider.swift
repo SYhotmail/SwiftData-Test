@@ -25,19 +25,16 @@ protocol ImageProviderType: Sendable {
     func image(at: URL) async throws -> UIImage!
 }
 
-actor ProcessingActor: ImageProviderType {
-    private let executor: any SerialExecutor
-    private let fileManager: FileManager
-    private let imageDownloader: any NetworkImageServiceProtocol
-    private let imageDirectoryURL: URL!
+final class LocalImageCacher: @unchecked Sendable {
+    let fileManager: FileManager
+    let imageDirectoryURL: URL
     
-    init(executor: any SerialExecutor = CustomSerialExecutor(),
-         fileManager: FileManager = .default,
-         imageDownloader: any NetworkImageServiceProtocol = NetworkService()) {
-        self.executor = executor
+    init?(fileManager: FileManager = .default) {
         self.fileManager = fileManager
-        self.imageDownloader = imageDownloader
-        imageDirectoryURL = try? Self.initContent(fileManager: fileManager)
+        guard let imageDirectoryURL = try? Self.initContent(fileManager: fileManager) else {
+            return nil
+        }
+        self.imageDirectoryURL = imageDirectoryURL
     }
     
     private static func initContent(fileManager: FileManager) throws -> URL! {
@@ -55,18 +52,42 @@ actor ProcessingActor: ImageProviderType {
         return directoryURL
     }
     
-    private func localURL(for url: URL) -> URL! {
-        guard let imageDirectoryURL else {
-            return nil
-        }
-        
+    private func localURL(for url: URL) -> URL {
         let relativePath = url.path()
         return imageDirectoryURL.appendingPathComponent(relativePath)
     }
     
+    func localURLForExistingFile(for url: URL) -> URL? {
+        let url = localURL(for: url)
+        guard fileManager.fileExists(atPath: url.path()) else {
+            return nil
+        }
+        return url
+    }
+    
+    func cacheTempFile(url tempURL: URL) throws -> URL {
+        let localImageURL = localURL(for: tempURL)
+        
+        try? fileManager.createDirectory(at: localImageURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        
+        try fileManager.copyItem(at: tempURL, to: localImageURL)
+        return localImageURL
+    }
+}
+
+final class CachedImageProvider: ImageProviderType {
+    private let imageDownloader: any NetworkImageServiceProtocol
+    private let imageCacher: LocalImageCacher!
+    
+    init(imageDownloader: any NetworkImageServiceProtocol = NetworkService(),
+         imageCacher: LocalImageCacher! = .init()) {
+        self.imageDownloader = imageDownloader
+        self.imageCacher = imageCacher
+    }
+    
     //TODO: check memory leakage..
     private func localOrRemoteImage(at url: URL) async throws -> URL {
-        if let url = localURL(for: url), fileManager.fileExists(atPath: url.path()) {
+        if let url = imageCacher?.localURLForExistingFile(for: url) {
             return url
         }
         return try await downloadAndCacheImage(url: url)
@@ -81,19 +102,6 @@ actor ProcessingActor: ImageProviderType {
         let tempURL = try await imageDownloader.downloadImageTemporary(from: url)
         assert(tempURL.isFileURL)
         
-        guard let localImageURL = localURL(for: url) else {
-            return tempURL
-        }
-        
-        try? fileManager.createDirectory(at: localImageURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        
-        try fileManager.copyItem(at: tempURL, to: localImageURL)
-        return localImageURL
-    }
-    
-    
-    
-    nonisolated var unownedExecutor: UnownedSerialExecutor {
-        executor.asUnownedSerialExecutor()
+        return try imageCacher?.cacheTempFile(url: tempURL) ?? tempURL
     }
 }

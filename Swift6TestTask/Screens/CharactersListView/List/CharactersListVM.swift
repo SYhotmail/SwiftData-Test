@@ -11,33 +11,23 @@ import SwiftUICore
 import SwiftUI
 import SwiftData
 import Synchronization
+import SectionedQuery
 
 @MainActor
 @Observable //used to be Observable Object...
-final class CharactersListVM /*: @unchecked Sendable*/ {
+final class CharactersListVM {
     @ObservationIgnored
     private let service: any NetworkServiceProtocol
     @ObservationIgnored
     let imageProvider: any ImageProviderType
+    
+    @ObservationIgnored
+    let database: DatabaseService
+    
     @ObservationIgnored //ignore Publisher..
     private var cancellable = Set<AnyCancellable>()
     
-    @ObservationIgnored
-    var modelContext: ModelContext! {
-        didSet {
-            guard let modelContext, oldValue !== modelContext else {
-                return
-            }
-            
-            defineCharacters()
-            /*Task {
-                await defineCharacters()
-            }*/
-        }
-    }
-    
     let errorDuringLoadSubject = CurrentValueSubject<Bool,Never>(false)
-    
     var errorDuringLoad: Bool {
         get {
             access(keyPath: \.errorDuringLoad)
@@ -50,68 +40,25 @@ final class CharactersListVM /*: @unchecked Sendable*/ {
         }
     }
     
-    @MainActor
-    private func defineCharacters() {
-        guard let modelContext else {
-            return
-        }
-        
-        let fetchDescriptor = FetchDescriptor<CharactersListDBModel>()
-        if let charactersFromDB = try? modelContext.fetch(fetchDescriptor) {
-            characterSections = charactersFromDB.map { CharactersSectionViewModel(model: $0.model(),
-                                                                                  imageProvider: imageProvider) }
-        }
+    private func fetchCharactersList() async throws -> [CharactersSectionViewModel] {
+        try await database.fetchCharactersList()
     }
     
-    
-    @MainActor
-    private func eraseDatabase(save: Bool = true) throws {
-        guard let modelContext else {
-            return
-        }
-        
-        let fetchDescriptor = FetchDescriptor<CharactersListDBModel>()
-        let charactersFromDB = try modelContext.fetch(fetchDescriptor)
-        
-        charactersFromDB.forEach { dbModel in
-            modelContext.delete(dbModel)
-        }
-        
-        if save, !modelContext.autosaveEnabled {
-            try modelContext.save()
-        }
+    private func eraseCharactersListModels(save: Bool = true) async throws {
+        try await database.eraseCharactersListModels(save: save)
     }
     
-    @MainActor
-    func updateCharacters(model: CharactersListModel) throws {
-        guard let modelContext else {
-            return
-        }
-        
-        let dbModel = CharactersListDBModel(model: model)
-        modelContext.insert(dbModel)
-        
-        try modelContext.save()
+    private func updateCharactersListModel(_ model: CharactersListModel) async throws {
+        try await database.updateCharactersListModel(model)
     }
     
     init(service: any NetworkServiceProtocol,
+         database: DatabaseService,
          imageProvider: any ImageProviderType) {
         self.service = service
+        self.database = database
         self.imageProvider = imageProvider
         bind()
-    }
-    
-    private let characterSectionsSubject = CurrentValueSubject<[CharactersSectionViewModel], Never>([])
-    private(set)var characterSections: [CharactersSectionViewModel] {
-        get {
-            access(keyPath: \.characterSections)
-            return characterSectionsSubject.value
-        }
-        set {
-            withMutation(keyPath: \.characterSections) {
-                characterSectionsSubject.value = newValue
-            }
-        }
     }
     
     let searchableTextSubject = CurrentValueSubject<String, Never>("")
@@ -152,9 +99,7 @@ final class CharactersListVM /*: @unchecked Sendable*/ {
             }
         }
     }
-    
-    var filteredCharacterSections: [CharactersSectionViewModel]!
-    
+
     @ObservationIgnored
     private var task: Task<Void, Never>!
     @ObservationIgnored
@@ -167,30 +112,6 @@ final class CharactersListVM /*: @unchecked Sendable*/ {
             .receive(on: DispatchQueue.main)
             .subscribe(errorDuringLoadSubject)
             .store(in: &cancellable)
-        
-        characterSectionsSubject.combineLatest(searchableTextSubject.removeDuplicates())
-            .dropFirst()
-            .receive(on: DispatchQueue.global(qos: .userInitiated))
-            .map { [unowned self] sections, text  in
-                guard !text.isEmpty else {
-                    return sections
-                }
-                //TODO: add filtering inside sections.....
-                let filteredSections = sections.filter { $0.characters.contains(where: { $0.officialName.lowercased().contains(text.lowercased()) }) }
-                guard !filteredSections.isEmpty else {
-                    return []
-                }
-                
-                
-                return filteredSections.map { filteredSection in CharactersSectionViewModel(imageProvider: self.imageProvider,
-                                                                                            pageInfo: filteredSection.pageInfo,
-                                                                                            characters: filteredSection.characters.filter { $0.officialName.lowercased().contains(text.lowercased()) }) }
-                
-            }
-            .receive(on: DispatchQueue.main)
-            .sink { [unowned self] filteredCharacterSections in
-                self.filteredCharacterSections = filteredCharacterSections
-            }.store(in: &cancellable)
     }
     
     private func isLoadingSameCharactersPage(url: URL?) -> Bool {
@@ -204,6 +125,10 @@ final class CharactersListVM /*: @unchecked Sendable*/ {
                 urlPtr = .some(url)
             }
         }
+    }
+    
+    private func lastCharacterSection() async throws -> CharactersSectionViewModel! {
+      try await database.lastCharactersListSection()
     }
     
     nonisolated private func loadCharactersPageAsync(url: URL?, eraseOld: Bool = false) async {
@@ -222,24 +147,21 @@ final class CharactersListVM /*: @unchecked Sendable*/ {
             let backendSection = try await service.getAllCharacters(url: url)
             debugPrint("!!! backendSection.pageInfo \(backendSection.info)")
             debugPrint("!!! ids \(backendSection.results.map { $0.id })")
-            let section = CharactersSectionViewModel(model: backendSection,
-                                                     imageProvider: imageProvider)
-            Task { @MainActor [section, backendSection] in
+            
+            Task { @MainActor [backendSection] in
                 guard isLoadingSameCharactersPage(url: url) else {
                     return
                 }
                 
-                assert(eraseOld || characterSections.last?.pageInfo.next == url?.absoluteString)
+                //assert(eraseOld || (try? lastCharacterSection())?.pageInfo.next == url?.absoluteString)
                 if eraseOld {
-                    characterSections = []
+                    try await eraseCharactersListModels(save: false)
                 }
-                characterSections.append(section)
+                try await updateCharactersListModel(backendSection)
+                
                 markAsFinishedLoading(result: .success(url))
                 //TODO: how to change or update?
-                if eraseOld {
-                    try eraseDatabase(save: false)
-                }
-                try updateCharacters(model: backendSection)
+                
             }
         } catch {
             errorLoadingMessage = error.localizedDescription
@@ -251,49 +173,54 @@ final class CharactersListVM /*: @unchecked Sendable*/ {
         }
     }
     
-    func reloadCharacters(once: Bool = false) {
-        guard !(once && characterSections.isEmpty) || task == nil || loadedURL.withLock({ $0 }) == nil else {
+    @MainActor
+    func reloadCharacters(once: Bool = false) async {
+        let isNotEmpty = (try? await database.hasCharactersLists()) == true
+        guard !once || isNotEmpty || task == nil || loadedURL.withLock({ $0 }) == nil else {
             return
         }
-        loadCharactersPage(force: true)
+        await loadCharactersPage(force: true)
     }
     
-    func lastSectionRowId() -> Int? {
-        lastInSectionRowId(index: characterSections.count - 1)
+    func listCellVM(item: CharactersListDBModel.PageResult) -> CharacterListCellViewModel {
+        return .init(model: item.model(),
+                    imageProvider: imageProvider,
+                    isLastOnPage: item.charactersListDBModel?.results.last === item)
     }
     
-    func lastInSectionRowId(index: Int) -> Int? {
-        guard characterSections.count > index, index >= 0 else {
-            return nil
+    func lastSectionRowId() async -> Int? {
+        try? await database.lastCharactersListSection().characters.last?.id
+    }
+    
+    func willAppear(characterVM character: CharacterListCellViewModel) async {
+        guard await lastSectionRowId() == character.id else {
+            return
         }
-        
-        let section = characterSections[index]
-        return section.characters.last?.id
+        await loadCharactersPage(force: false)
     }
     
-    func willAppear(characterVM character: CharacterListCellViewModel) {
-        if character.id == lastSectionRowId() {
-            loadCharactersPage(force: false)
-        }
+    static func sectionedQuery(text: String = "") -> SectionedQuery<String, CharactersListDBModel.PageResult> {
+        .init(\.nameFirstLetter,
+               filter: text.isEmpty ? nil : #Predicate<CharactersListDBModel.PageResult> { $0.name.contains(text) },
+               sort: [SortDescriptor(\.name)])
     }
     
-    @MainActor func isLoadingAndLastRow(characterVM character: CharacterListCellViewModel) -> Bool {
-        isLoading == true && character.id == lastSectionRowId()
+    func sectionedQuery() -> SectionedQuery<String, CharactersListDBModel.PageResult> {
+        Self.sectionedQuery(text: searchableText)
     }
-    
     
     @discardableResult
-    func loadCharactersPage(force: Bool) -> Bool {
+    func loadCharactersPage(force: Bool) async -> Bool {
         var url: URL?
         var run = force
         if force {
             url = nil
             debugPrint("!!! \(#function) ")
-        } else {
-            let nextURLRaw = characterSections.last.flatMap { $0.pageInfo.next }
+        } else if let section = try? await lastCharacterSection() {
+            let nextURLRaw = section.pageInfo.next
             let nextURL = nextURLRaw.flatMap { URL(string: $0) }
             
-            let prevURLRaw = characterSections.last.flatMap { $0.pageInfo.prev }
+            let prevURLRaw = section.pageInfo.prev
             let prevURL = prevURLRaw.flatMap { URL(string: $0) }
             //debugPrint("!!! \(#function) nextURL \(nextURL) prevURL \(prevURL)")
             run = (loadingURL.withLock({ $0 }) != nextURL && loadedURL.withLock({ $0 }) != prevURL)
@@ -303,11 +230,8 @@ final class CharactersListVM /*: @unchecked Sendable*/ {
         guard run else {
             return false
         }
-        disposeTask()
+        await loadCharactersPageAsync(url: url, eraseOld: force)
         
-        task = Task(priority: .userInitiated) { [url] in
-            await loadCharactersPageAsync(url: url, eraseOld: force)
-        }
         return true
     }
     
@@ -319,11 +243,6 @@ final class CharactersListVM /*: @unchecked Sendable*/ {
             self.task = nil
         }
         markAsFinishedLoading(result: .success(nil))
-    }
-    
-    deinit {
-        assert(Thread.isMainThread)
-        //disposeTask()
     }
 }
 

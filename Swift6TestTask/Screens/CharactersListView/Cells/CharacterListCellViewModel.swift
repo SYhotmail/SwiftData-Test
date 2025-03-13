@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SectionedQuery
 
 extension CharactersListModel.PageInfo {
     var id: String {
@@ -14,19 +15,24 @@ extension CharactersListModel.PageInfo {
 }
 
 @Observable
-final class CharactersSectionViewModel: Identifiable {
+final class CharactersSectionViewModel: Identifiable, Sendable {
     @ObservationIgnored
     let pageInfo: CharactersListModel.PageInfo
-    var characters = [CharacterListCellViewModel]()
+    @ObservationIgnored
+    let characters: [CharacterListCellViewModel]
+    
     let imageProvider: any ImageProviderType
     var id: String { pageInfo.id }
     
     convenience init(model: CharactersListModel,
                      imageProvider: any ImageProviderType) {
+        let results = model.results
+        let count = results.count
         self.init(imageProvider: imageProvider,
                   pageInfo: model.info,
-                  characters: model.results.map { .init(model: $0,
-                                                        imageProvider: imageProvider) })
+                  characters: results.enumerated().map { .init(model: $0.element,
+                                                               imageProvider: imageProvider,
+                                                               isLastOnPage: $0.offset == count - 1) })
     }
     
     init(imageProvider: any ImageProviderType,
@@ -45,6 +51,9 @@ final class CharacterListCellViewModel: Identifiable, Sendable {
     
     @ObservationIgnored
     let imageProvider: any ImageProviderType
+    
+    @ObservationIgnored
+    let isLastOnPage: Bool
     
     @MainActor
     private(set)var isLoading = false
@@ -66,11 +75,13 @@ final class CharacterListCellViewModel: Identifiable, Sendable {
     let id: Int
     
     init(model: CharactersListModel.PageResult,
-         imageProvider: any ImageProviderType) {
+         imageProvider: any ImageProviderType,
+         isLastOnPage: Bool) {
         id = model.id
-        self.imageProvider = imageProvider
         imageURL = model.image.flatMap { .init(string: $0) }
         officialName = model.name
+        self.imageProvider = imageProvider
+        self.isLastOnPage = isLastOnPage
     }
     
     @MainActor
