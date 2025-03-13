@@ -12,21 +12,6 @@ protocol CharacterListAdapter {
     func lastCharactersListSection() async throws -> CharactersSectionViewModel!
 }
 
-
-final class CustomSerialExecutor: SerialExecutor {
-    private let queue = DispatchQueue(label: "serial.executor.queue")
-    func enqueue(_ job: consuming ExecutorJob) {
-        let unownedJob = UnownedJob(job)
-        queue.async { [weak self, unownedJob] in
-            guard let self else {
-                return
-            }
-            unownedJob.runSynchronously(on: self.asUnownedSerialExecutor())
-        }
-    }
-}
-
-
 actor DatabaseService: CharacterListAdapter {
     private func numberOfCharacterListSections() async throws -> Int {
         try charactersListCount()
@@ -51,8 +36,6 @@ actor DatabaseService: CharacterListAdapter {
         
         return container
     }
-    
-    //https://syed4asad4.medium.com/power-of-modelactor-in-swiftdata-0053651261bb
     
     func lastCharactersListSection() async throws -> CharactersSectionViewModel! {
         let vm = try charactersListModel(order: .reverse)
@@ -153,3 +136,15 @@ actor DatabaseService: CharacterListAdapter {
 extension DatabaseService: SwiftData.ModelActor {
 }
 
+final class CustomSerialExecutor: SerialExecutor {
+    private let queue = DispatchQueue(label: "serial.executor.queue")
+    func enqueue(_ job: consuming ExecutorJob) {
+        let unownedJob = UnownedJob(job)
+        queue.async { [weak self, unownedJob] in
+            guard let self else {
+                return
+            }
+            unownedJob.runSynchronously(on: self.asUnownedSerialExecutor())
+        }
+    }
+}
