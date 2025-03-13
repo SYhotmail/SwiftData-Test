@@ -8,7 +8,11 @@
 import SwiftUI
 
 struct CharacterListCell: View {
-    var viewModel: CharacterListCellViewModel
+    init(viewModel: CharacterListCellViewModel) {
+        _viewModel = .init(initialValue: viewModel)
+    }
+    
+    @State var viewModel: CharacterListCellViewModel
     
     var body: some View {
         VStack {

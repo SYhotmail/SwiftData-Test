@@ -15,8 +15,9 @@ enum NetworkError: Error {
 }
 
 protocol NetworkServiceProtocol: Sendable {
-    func getAllCharacters(url: URL?) async throws(NetworkError) -> CharactersListModel
+    func getAllCharacters(url: URL) async throws(NetworkError) -> CharactersListModel
     func getAllCharacters() async throws(NetworkError) -> CharactersListModel
+    nonisolated func charactersFirstPageURL() -> URL
 }
 
 protocol NetworkImageServiceProtocol: Sendable {
@@ -25,7 +26,7 @@ protocol NetworkImageServiceProtocol: Sendable {
 
 extension NetworkServiceProtocol {
     func getAllCharacters() async throws(NetworkError) -> CharactersListModel {
-        try await getAllCharacters(url: nil)
+        try await getAllCharacters(url: charactersFirstPageURL())
     }
 }
 
@@ -37,16 +38,13 @@ struct NetworkService: NetworkServiceProtocol {
         baseURL = URL(string: "https://rickandmortyapi.com/api")! // /all")
     }
     
-    func getAllCharacters(url: URL?) async throws(NetworkError) -> CharactersListModel {
-        
-        let finalURL: URL
-        //?fields=name,capital,flags
-        if let url {
-            finalURL = url
-            assert(finalURL.absoluteString.hasPrefix(baseURL.absoluteString)) // is it always like that?
-        } else {
-            finalURL = baseURL.appendingPathComponent("character").appending(queryItems: [.init(name: "page", value: "1")])
-        }
+    nonisolated func charactersFirstPageURL() -> URL {
+        baseURL.appendingPathComponent("character").appending(queryItems: [.init(name: "page", value: "1")])
+    }
+    
+    func getAllCharacters(url finalURL: URL) async throws(NetworkError) -> CharactersListModel {
+        debugPrint("!!! \(#function) url \(finalURL)")
+        assert(finalURL.absoluteString.hasPrefix(baseURL.absoluteString)) // is it always like that?
         do {
             let tuple = try await urlSession.data(for: .init(url: finalURL))
             guard let response = tuple.1 as? HTTPURLResponse, response.statusCode == 200 else {
@@ -54,7 +52,10 @@ struct NetworkService: NetworkServiceProtocol {
             }
             let data = tuple.0
             
-            return try JSONDecoder().decode(CharactersListModel.self, from: data)
+            var result = try JSONDecoder().decode(CharactersListModel.self, from: data)
+            result.id = finalURL.query()
+            debugPrint("!!! result \(result.info.id)")
+            return result
         }
         catch {
             debugPrint("!!! \(error)")

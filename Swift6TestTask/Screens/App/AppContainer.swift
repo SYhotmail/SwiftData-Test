@@ -6,16 +6,29 @@
 //
 
 import Foundation
+import SwiftData
 
 
-final class AppContainer {
-    let networkService = NetworkService()
-    let modelContainer = try! DatabaseService.modelContainer(isStoredInMemoryOnly: false)
-    let imageProvider = CachedImageProvider()
+final class AppContainer: @unchecked Sendable {
+    let networkService: NetworkService
     
-    private lazy var database: DatabaseService = {
-        return .init(container: modelContainer, imageProvider: imageProvider)
-    }()
+    let imageProvider: CachedImageProvider
+    private var database: DatabaseService!
+    let modelContainer: ModelContainer
+    
+    init() {
+        let networkService = NetworkService()
+        self.networkService = networkService
+        self.modelContainer = try! DatabaseService.modelContainer(isStoredInMemoryOnly: false)
+        imageProvider = CachedImageProvider(imageDownloader: networkService)
+        
+        
+        Task { //TODO: Improve...
+            assert(!Thread.isMainThread)
+            database = .init(modelContainer: try! DatabaseService.modelContainer(isStoredInMemoryOnly: false))
+            await database.setImageProvider(imageProvider)
+        }
+    }
     
     @MainActor func charactersListVM() -> CharactersListVM {
         return .init(service: networkService,

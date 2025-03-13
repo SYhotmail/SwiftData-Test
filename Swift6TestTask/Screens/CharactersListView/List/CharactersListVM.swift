@@ -27,6 +27,9 @@ final class CharactersListVM {
     @ObservationIgnored //ignore Publisher..
     private var cancellable = Set<AnyCancellable>()
     
+    @ObservationIgnored
+    private var listId: String = ""
+    
     let errorDuringLoadSubject = CurrentValueSubject<Bool,Never>(false)
     var errorDuringLoad: Bool {
         get {
@@ -101,17 +104,22 @@ final class CharactersListVM {
     }
 
     @ObservationIgnored
-    private var task: Task<Void, Never>!
-    @ObservationIgnored
     private let loadingURL = Mutex<URL?>(nil)
     @ObservationIgnored
     private let loadedURL = Mutex<URL??>(nil)
     
     private func bind() {
+        searchableTextSubject.removeDuplicates().map { $0 }.eraseToAnyPublisher().sink { [unowned self] in
+            //Self.searchText = $0
+            self.listId = $0 //to refresh query...
+        }.store(in: &cancellable)
+        
         errorLoadingMessageSubject.map { $0?.isEmpty == false } //CurrentValueSubject, used to be: $errorLoadingMessage
             .receive(on: DispatchQueue.main)
             .subscribe(errorDuringLoadSubject)
             .store(in: &cancellable)
+        
+        searchableText = Self.searchText
     }
     
     private func isLoadingSameCharactersPage(url: URL?) -> Bool {
@@ -131,7 +139,7 @@ final class CharactersListVM {
       try await database.lastCharactersListSection()
     }
     
-    nonisolated private func loadCharactersPageAsync(url: URL?, eraseOld: Bool = false) async {
+    private func loadCharactersPageAsync(url: URL, eraseOld: Bool = false) async {
         
         Task { @MainActor in
             isLoading = true
@@ -139,7 +147,7 @@ final class CharactersListVM {
         
         var errorLoadingMessage: String?
         do {
-            assert(!Thread.isMainThread)
+            //assert(!Thread.isMainThread)
             self.loadingURL.withLock {
                $0 = url
             }
@@ -165,6 +173,7 @@ final class CharactersListVM {
             }
         } catch {
             errorLoadingMessage = error.localizedDescription
+            markAsFinishedLoading(result: .failure(error))
         }
         
         Task { @MainActor in
@@ -176,7 +185,7 @@ final class CharactersListVM {
     @MainActor
     func reloadCharacters(once: Bool = false) async {
         let isNotEmpty = (try? await database.hasCharactersLists()) == true
-        guard !once || isNotEmpty || task == nil || loadedURL.withLock({ $0 }) == nil else {
+        guard !once || isNotEmpty || loadedURL.withLock({ $0 }) == nil else {
             return
         }
         await loadCharactersPage(force: true)
@@ -184,37 +193,48 @@ final class CharactersListVM {
     
     func listCellVM(item: CharactersListDBModel.PageResult) -> CharacterListCellViewModel {
         return .init(model: item.model(),
-                    imageProvider: imageProvider,
-                    isLastOnPage: item.charactersListDBModel?.results.last === item)
-    }
-    
-    func lastSectionRowId() async -> Int? {
-        try? await database.lastCharactersListSection().characters.last?.id
+                    imageProvider: imageProvider)
     }
     
     func willAppear(characterVM character: CharacterListCellViewModel) async {
-        guard await lastSectionRowId() == character.id else {
-            return
-        }
         await loadCharactersPage(force: false)
     }
     
-    static func sectionedQuery(text: String = "") -> SectionedQuery<String, CharactersListDBModel.PageResult> {
-        .init(\.nameFirstLetter,
-               filter: text.isEmpty ? nil : #Predicate<CharactersListDBModel.PageResult> { $0.name.contains(text) },
-               sort: [SortDescriptor(\.name)])
+    nonisolated static private(set)var searchText: String {
+        get {
+            UserDefaults.standard.string(forKey: "searchText") ?? ""
+        }
+        set {
+            //TODO: filtering is happens on view level, i.e. when view is recreated...
+            UserDefaults.standard.set(newValue, forKey: "searchText")
+        }
     }
     
-    func sectionedQuery() -> SectionedQuery<String, CharactersListDBModel.PageResult> {
-        Self.sectionedQuery(text: searchableText)
+    static func sectionedQuery() -> SectionedQuery<String, CharactersListDBModel.PageResult> {
+        let lowerText = searchText
+        return .init(\.nameFirstLetter,
+                      filter: lowerText.isEmpty ? nil : #Predicate<CharactersListDBModel.PageResult> { $0.name.contains(lowerText) },
+                      sort: [SortDescriptor(\.name)])
+    }
+    
+    func isLastCharacter(_ character: CharactersListDBModel.PageResult,
+                         sections: SectionedResults<String, CharactersListDBModel.PageResult>) -> Bool {
+        guard let last = sections.last else {
+            return false
+        }
+        let isLast = last.lastIndex(of: character) == last.count - 1
+        return isLast
+    }
+    
+    func noSearchableText(sections: SectionedResults<String, CharactersListDBModel.PageResult>) -> Bool {
+        sections.isEmpty && !searchableText.isEmpty
     }
     
     @discardableResult
     func loadCharactersPage(force: Bool) async -> Bool {
-        var url: URL?
+        var url = service.charactersFirstPageURL()
         var run = force
         if force {
-            url = nil
             debugPrint("!!! \(#function) ")
         } else if let section = try? await lastCharacterSection() {
             let nextURLRaw = section.pageInfo.next
@@ -224,25 +244,21 @@ final class CharactersListVM {
             let prevURL = prevURLRaw.flatMap { URL(string: $0) }
             //debugPrint("!!! \(#function) nextURL \(nextURL) prevURL \(prevURL)")
             run = (loadingURL.withLock({ $0 }) != nextURL && loadedURL.withLock({ $0 }) != prevURL)
-            url = nextURL
+            if let nextURL {
+                url = nextURL
+            }
+            
+            if run {
+                run = loadingURL.withLock({ $0 }) != url && loadedURL.withLock({ $0 }) != url
+            }
         }
         
         guard run else {
             return false
         }
-        await loadCharactersPageAsync(url: url, eraseOld: force)
+        await loadCharactersPageAsync(url: url, eraseOld: force) //TODO: adjust...
         
         return true
-    }
-    
-    private func disposeTask() {
-        if let task, !task.isCancelled {
-            if !task.isCancelled {
-                task.cancel()
-            }
-            self.task = nil
-        }
-        markAsFinishedLoading(result: .success(nil))
     }
 }
 

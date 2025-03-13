@@ -27,12 +27,10 @@ final class CharactersSectionViewModel: Identifiable, Sendable {
     convenience init(model: CharactersListModel,
                      imageProvider: any ImageProviderType) {
         let results = model.results
-        let count = results.count
         self.init(imageProvider: imageProvider,
                   pageInfo: model.info,
                   characters: results.enumerated().map { .init(model: $0.element,
-                                                               imageProvider: imageProvider,
-                                                               isLastOnPage: $0.offset == count - 1) })
+                                                               imageProvider: imageProvider) })
     }
     
     init(imageProvider: any ImageProviderType,
@@ -51,9 +49,6 @@ final class CharacterListCellViewModel: Identifiable, Sendable {
     
     @ObservationIgnored
     let imageProvider: any ImageProviderType
-    
-    @ObservationIgnored
-    let isLastOnPage: Bool
     
     @MainActor
     private(set)var isLoading = false
@@ -75,13 +70,11 @@ final class CharacterListCellViewModel: Identifiable, Sendable {
     let id: Int
     
     init(model: CharactersListModel.PageResult,
-         imageProvider: any ImageProviderType,
-         isLastOnPage: Bool) {
+         imageProvider: any ImageProviderType) {
         id = model.id
         imageURL = model.image.flatMap { .init(string: $0) }
         officialName = model.name
         self.imageProvider = imageProvider
-        self.isLastOnPage = isLastOnPage
     }
     
     @MainActor

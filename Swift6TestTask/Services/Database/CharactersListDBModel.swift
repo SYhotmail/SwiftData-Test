@@ -25,8 +25,9 @@ final class CharactersListDBModel: ModelConvertable {
     
     @Attribute(.unique) var id: String
     
-    init(info: PageInfo, results: [PageResult]) {
-        self.id = info.id
+    private init(id: String?,
+                 info: PageInfo, results: [PageResult]) {
+        self.id = id ?? info.id
         self.info = info
         self.results = results
         
@@ -34,7 +35,8 @@ final class CharactersListDBModel: ModelConvertable {
     }
     
     convenience init(model: CharactersListModel) {
-        self.init(info: .init(model: model.info),
+        self.init(id: model.id,
+                  info: .init(model: model.info),
                   results: model.results.map { .init(model: $0) })
     }
     
@@ -68,6 +70,8 @@ final class CharactersListDBModel: ModelConvertable {
              prev: String?) {
             self.count = count
             self.pages = pages
+            self.prev = prev
+            self.next = next
             self.id = id
         }
         

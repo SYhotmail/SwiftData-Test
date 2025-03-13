@@ -6,19 +6,6 @@
 //
 
 import Foundation
-
-final class CustomSerialExecutor: SerialExecutor {
-    private let queue = DispatchQueue(label: "serial.executor.queue")
-    func enqueue(_ job: consuming ExecutorJob) {
-        let unownedJob = UnownedJob(job)
-        queue.async { [weak self, unownedJob] in
-            guard let self else {
-                return
-            }
-            unownedJob.runSynchronously(on: self.asUnownedSerialExecutor())
-        }
-    }
-}
 import UIKit
 
 protocol ImageProviderType: Sendable {
@@ -85,7 +72,6 @@ final class CachedImageProvider: ImageProviderType {
         self.imageCacher = imageCacher
     }
     
-    //TODO: check memory leakage..
     private func localOrRemoteImage(at url: URL) async throws -> URL {
         if let url = imageCacher?.localURLForExistingFile(for: url) {
             return url
@@ -94,8 +80,10 @@ final class CachedImageProvider: ImageProviderType {
     }
     
     func image(at url: URL) async throws -> UIImage! {
-        let url = try await localOrRemoteImage(at: url)
-        return UIImage(contentsOfFile: url.path)
+        debugPrint("!!! \(#function) url: \(url)")
+        let localURL = try await localOrRemoteImage(at: url)
+        assert(FileManager.default.fileExists(atPath: localURL.path()))
+        return UIImage(contentsOfFile: localURL.path)
     }
     
     private func downloadAndCacheImage(url: URL) async throws -> URL {

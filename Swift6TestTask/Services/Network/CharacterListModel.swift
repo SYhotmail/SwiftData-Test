@@ -12,6 +12,8 @@ import Foundation
 struct CharactersListModel: Decodable, Encodable, Sendable {
     let info: PageInfo
     let results: [PageResult]
+    
+    var id: String?
 
     // MARK: - PageInfo
     struct PageInfo: Decodable, Encodable, Sendable {

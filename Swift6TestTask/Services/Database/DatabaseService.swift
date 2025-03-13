@@ -12,29 +12,30 @@ protocol CharacterListAdapter {
     func lastCharactersListSection() async throws -> CharactersSectionViewModel!
 }
 
-actor DatabaseService: CharacterListAdapter {
-    nonisolated var unownedExecutor: UnownedSerialExecutor {
-        executor.asUnownedSerialExecutor()
+
+final class CustomSerialExecutor: SerialExecutor {
+    private let queue = DispatchQueue(label: "serial.executor.queue")
+    func enqueue(_ job: consuming ExecutorJob) {
+        let unownedJob = UnownedJob(job)
+        queue.async { [weak self, unownedJob] in
+            guard let self else {
+                return
+            }
+            unownedJob.runSynchronously(on: self.asUnownedSerialExecutor())
+        }
     }
-    
+}
+
+
+actor DatabaseService: CharacterListAdapter {
     private func numberOfCharacterListSections() async throws -> Int {
         try charactersListCount()
     }
     
-    private let executor = CustomSerialExecutor()
-    private let imageProvider: any ImageProviderType
-    private var modelContext: ModelContext!
+    private var imageProvider: (any ImageProviderType)!
     
-    init(container: ModelContainer,
-         imageProvider: any ImageProviderType) {
-        self.imageProvider = imageProvider
-        Task {
-            await defineContext(container: container)
-        }
-    }
-    
-    private func defineContext(container: ModelContainer) {
-        modelContext = .init(container)
+    func setImageProvider(_ provider: any ImageProviderType) {
+        imageProvider = provider
     }
     
     nonisolated static func modelContainer(isStoredInMemoryOnly: Bool = false) throws -> ModelContainer {
@@ -54,17 +55,13 @@ actor DatabaseService: CharacterListAdapter {
     //https://syed4asad4.medium.com/power-of-modelactor-in-swiftdata-0053651261bb
     
     func lastCharactersListSection() async throws -> CharactersSectionViewModel! {
-        let count = try await numberOfCharacterListSections()
-        guard count > 0 else {
-            return nil
-        }
-        
-        let vm = try charactersListModel(offset: count - 1)
+        let vm = try charactersListModel(order: .reverse)
         return vm.flatMap { .init(model: $0.model(), imageProvider: imageProvider) }
     }
     
     private func fetchCharactersListCore() throws -> [CharactersListDBModel] {
-        let fetchDescriptor = FetchDescriptor<CharactersListDBModel>()
+        assert(!Thread.isMainThread)
+        let fetchDescriptor = charactersListFetchDescriptor()
         return try modelContext.fetch(fetchDescriptor)
     }
     
@@ -74,18 +71,39 @@ actor DatabaseService: CharacterListAdapter {
                                                                  imageProvider: imageProvider) }
     }
     
-    func charactersListCount(limit: Int? = nil, offset: Int? = nil) throws -> Int {
-        var fetchDescriptor = FetchDescriptor<CharactersListDBModel>()
+    private func charactersListFetchDescriptor(limit: Int? = nil,
+                                               offset: Int? = nil,
+                                               order: SortOrder = .forward) -> FetchDescriptor<CharactersListDBModel> {
+        var fetchDescriptor = charactersListFetchDescriptor(CharactersListDBModel.self)
+        fetchDescriptor.sortBy = [.init(\.id,
+                                         order: order)]
+        assert(!Thread.isMainThread)
+        return fetchDescriptor
+    }
+    
+    private func charactersListFetchDescriptor<T: PersistentModel>(_ type: T.Type,
+                                                                   limit: Int? = nil,
+                                                                   offset: Int? = nil) -> FetchDescriptor<T> {
+        var fetchDescriptor = FetchDescriptor<T>()
         fetchDescriptor.fetchLimit = limit
         fetchDescriptor.fetchOffset = offset
+        return fetchDescriptor
+    }
+    
+    func charactersListCount(limit: Int? = nil, offset: Int? = nil) throws -> Int {
+        let fetchDescriptor = charactersListFetchDescriptor(limit: limit,
+                                                            offset: offset)
         let count = try modelContext.fetchCount(consume fetchDescriptor)
         return count
     }
     
-    func charactersListModel(offset: Int? = nil) throws -> CharactersListDBModel! {
-        var fetchDescriptor = FetchDescriptor<CharactersListDBModel>()
-        fetchDescriptor.fetchLimit = 1
-        fetchDescriptor.fetchOffset = offset
+    func charactersListModel(offset: Int? = nil,
+                             order: SortOrder) throws -> CharactersListDBModel! {
+        assertIsolated()
+        assert(!Thread.isMainThread)
+        let fetchDescriptor = charactersListFetchDescriptor(limit: 1,
+                                                            offset: offset,
+                                                            order: order)
         let items = try modelContext.fetch(consume fetchDescriptor)
         return items.first
     }
@@ -102,7 +120,6 @@ actor DatabaseService: CharacterListAdapter {
     }
     
     func updateCharactersListModel(_ model: CharactersListModel) throws {
-        
         let dbModel = CharactersListDBModel(model: model)
         modelContext.insert(dbModel)
         
@@ -114,4 +131,25 @@ actor DatabaseService: CharacterListAdapter {
             try modelContext.save()
         }
     }
+    
+    
+    nonisolated let modelExecutor: any SwiftData.ModelExecutor
+    
+    nonisolated let modelContainer: SwiftData.ModelContainer
+    let executor = CustomSerialExecutor()
+    
+    init(modelContainer: SwiftData.ModelContainer) {
+        assert(!Thread.isMainThread)
+        let modelContext = ModelContext(modelContainer)
+        self.modelExecutor = DefaultSerialModelExecutor(modelContext: modelContext)
+        self.modelContainer = modelContainer
+    }
+    
+    nonisolated var unownedExecutor: UnownedSerialExecutor {
+        return .init(ordinary: executor)
+    }
 }
+
+extension DatabaseService: SwiftData.ModelActor {
+}
+
